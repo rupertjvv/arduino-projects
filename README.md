@@ -71,6 +71,34 @@ together.
 - 10k potentiometer
 - Piezo buzzer
 
+## Wiring
+
+The matrix rows are anodes driven high to light an LED. Columns are cathodes and are driven **low**
+to enable, so a pixel is on when its row is HIGH and its column is LOW.
+
+| Function | Arduino pins | Notes |
+|---|---|---|
+| Matrix rows (anodes) | `2, 3, 4, 5, 6, 7, 8, 9` | each through a 1k resistor |
+| Matrix columns (cathodes) | `10, 11, 12, 13, A1, A2, A3, A4` | driven low to enable |
+| Microphone | `A0` | analogue in |
+| Potentiometer | `A0` | analogue in, dimmer sketch |
+| LED (PWM) | `9` | dimmer sketch |
+| Piezo buzzer | `8` | melody sketch |
+
+Matrix pin order varies between modules. On mine the rows map to matrix pins 9, 14, 8, 12, 1, 7, 2, 5
+and the columns to 13, 3, 4, 10, 6, 11, 15, 16. Run `led-matrix-sweep-test` first: it walks one LED at
+a time, so a wrong pin shows up immediately instead of surfacing later as a scrambled display.
+
+## Tuning it for your setup
+
+Two values are specific to the hardware and will need changing:
+
+- **Visualiser sensitivity.** `map(peakToPeak, 0, 300, 0, 8)` assumes the microphone swings about 300
+  counts peak-to-peak at normal volume. Run `mic-level-serial`, watch the Serial Plotter, and set the
+  upper bound to what you actually see.
+- **Potentiometer range.** `map(potValue, 200, 800, 0, 255)` matches the travel measured on my board
+  rather than the theoretical 0 to 1023. Mapping from the real range means the full rotation is used.
+
 ## Running
 
 Open any sketch folder in the Arduino IDE and upload. The sketch folder name matches the `.ino`
