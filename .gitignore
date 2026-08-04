@@ -2,3 +2,10 @@
 build/
 *.hex
 *.elf
+
+# Python
+__pycache__/
+*.pyc
+
+# Serial captures written by tools/mic_calibrate.py --record
+*.csv
