@@ -94,10 +94,52 @@ a time, so a wrong pin shows up immediately instead of surfacing later as a scra
 Two values are specific to the hardware and will need changing:
 
 - **Visualiser sensitivity.** `map(peakToPeak, 0, 300, 0, 8)` assumes the microphone swings about 300
-  counts peak-to-peak at normal volume. Run `mic-level-serial`, watch the Serial Plotter, and set the
-  upper bound to what you actually see.
+  counts peak-to-peak at normal volume. `tools/mic_calibrate.py` measures this properly, see below.
 - **Potentiometer range.** `map(potValue, 200, 800, 0, 255)` matches the travel measured on my board
   rather than the theoretical 0 to 1023. Mapping from the real range means the full rotation is used.
+
+## tools/mic_calibrate.py
+
+The `300` in the visualiser is marked "TWEAK THIS" for a reason: it depends on the microphone module,
+its gain trimmer, the supply rail and how far away you are. Eyeballing the Serial Plotter gets you
+somewhere, but the plotter shows raw readings, and what the sketch actually acts on is the
+peak-to-peak spread over a 50 ms window.
+
+So this reads the `mic-level-serial` stream, reproduces that windowing on the host, and reports the
+bounds to paste back into the sketch.
+
+```
+python3 tools/mic_calibrate.py --port /dev/cu.usbmodem1101
+python3 tools/mic_calibrate.py --port /dev/cu.usbmodem1101 --record loud.csv
+python3 tools/mic_calibrate.py --replay loud.csv
+```
+
+It prints a live meter while capturing, then a suggested `map()` line, and a histogram of how the
+capture would have spread across the eight rows, so you can see whether the display would sit dark
+or clipped before reflashing anything.
+
+Two things came out of writing it that the Serial Plotter does not show:
+
+**The noise floor is not zero.** With nothing playing, the module still produced a spread of a
+couple of dozen counts. The sketch maps from 0, so that floor is permanently lit as the bottom row
+or two. Mapping from the measured floor instead is what lets the display go properly dark, the same
+correction already applied to the potentiometer in `pot-led-dimmer`.
+
+**The stream is slower than the sketch's delay suggests.** `mic-level-serial` delays 10 ms per
+reading, but each line is about five characters and 9600 baud only carries a character every
+millisecond or so, putting the real period nearer 15 ms. The tool measures it from the capture
+rather than assuming it. This is also the answer to why the visualiser samples on the board instead
+of streaming readings to a host and deciding there: the link cannot keep up with the signal.
+
+The upper bound uses the 95th percentile rather than the maximum, so one door slam does not set the
+scale for everything else and a few peaks clip instead, which is what `constrain()` is there for.
+
+Live capture needs `pyserial` (`pip install pyserial`). Replay and the tests do not need it, or a
+board:
+
+```
+python3 -m unittest discover -s tools
+```
 
 ## Running
 
