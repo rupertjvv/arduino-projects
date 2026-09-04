@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No install step on purpose. Live capture needs pyserial, but replay and
+      # everything the tests touch is stdlib only, and this job keeps it that way.
+      - name: Run tests
+        run: python -m unittest discover -s tools -v
+
+      - name: The tool must still start on a bare interpreter
+        run: python tools/mic_calibrate.py --help
