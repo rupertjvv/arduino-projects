@@ -9,3 +9,8 @@ __pycache__/
 
 # Serial captures written by tools/mic_calibrate.py --record
 *.csv
+
+# AI tool configs
+.claude/
+.cursor/
+CLAUDE.md
