@@ -10,7 +10,7 @@
 
 int buzzerPin = 8;
 
-// Melody — notes and durations (4 = quarter, 8 = eighth)
+// Melody: notes and durations (4 = quarter, 8 = eighth)
 int melody[] = {
   NOTE_C4, NOTE_C4, NOTE_G4, NOTE_G4,
   NOTE_A4, NOTE_A4, NOTE_G4,
@@ -38,6 +38,6 @@ void setup() {
 }
 
 void loop() {
-  // Nothing here — plays once on startup
+  // Nothing here, plays once on startup
   // Change to put the for loop here if you want it to repeat
 }
