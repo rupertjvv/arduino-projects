@@ -1,137 +1,73 @@
 # Arduino Projects
 
-A set of small Arduino UNO R3 sketches I wrote while learning embedded programming,
-built and tested on a home bench with an oscilloscope, function generator and bench PSU.
+Small Arduino UNO R3 sketches I wrote while learning embedded programming, built and tested on a
+home bench. The theme running through them is driving and reading hardware directly: multiplexing
+a display faster than the eye can follow, sampling an analogue signal properly rather than taking
+a single reading, and calibrating against what a sensor actually does rather than its nominal
+range.
 
-The theme running through them is driving and reading hardware directly: multiplexing a
-display faster than the eye can follow, sampling an analogue signal properly rather than
-taking a single reading, and calibrating against what a sensor actually does instead of
-what the datasheet range says.
+## The sketches
 
-## audio-visualiser-8x8
+**audio-visualiser-8x8** is the main one. An electret microphone on `A0` drives a scrolling level
+meter on an 8x8 LED matrix. A single `analogRead` of audio catches the waveform at an arbitrary
+point in its cycle, so the sketch tracks the running minimum and maximum over a 50 ms window and
+uses the peak-to-peak spread instead. All 64 LEDs share 8 row and 8 column pins, so the display
+loop lights one column at a time for 1 ms and leans on persistence of vision. Column heights sit
+in an 8-element buffer that shifts left each frame, which is what makes it scroll.
 
-The main one. An electret microphone on `A0` drives a scrolling level meter on an 8x8 LED matrix.
+**led-matrix-sweep-test** lights one LED at a time across the matrix, 100 ms each. I wrote it
+first to prove out the wiring before anything harder depended on it.
 
-Three things in here were more interesting than they first looked:
+**mic-level-serial** reads the microphone and streams raw values over serial at 9600 baud. This is
+how I worked out the amplitude range the mic actually produces.
 
-**Sampling.** A single `analogRead` of an audio signal is close to meaningless, because you catch
-the waveform at an arbitrary point in its cycle. Instead the sketch tracks the running minimum and
-maximum over a 50 ms window and uses the peak-to-peak difference as the amplitude. That is stable
-enough to drive a display.
+**pot-led-dimmer** fades an LED with PWM on pin 9. The ADC is read ten times and averaged, because
+a single reading jitters enough to make the LED visibly flicker.
 
-**Multiplexing.** All 64 LEDs share 8 row and 8 column pins, so only one column can be lit at a
-time. The display loop walks the columns, holding each for 1 ms, which is fast enough that
-persistence of vision makes the whole frame look continuously lit.
-
-**Scrolling.** Column heights live in an 8-element buffer. Each frame shifts the buffer left and
-writes the newest level into the last column, so the display scrolls right to left like a
-spectrogram. The inner draw loop repeats a few times per sample to slow the scroll to a readable
-speed without slowing the multiplexing itself.
-
-Rows go through 1k resistors; columns are common cathode and driven low to enable.
-
-## led-matrix-sweep-test
-
-Lights one LED at a time across the whole matrix, 100 ms each. I wrote this first to prove out the
-row and column wiring before anything more complicated depended on it. Useful for finding a
-mis-wired pin in seconds rather than debugging it inside the visualiser.
-
-## mic-level-serial
-
-Minimal sketch that reads the microphone and streams raw values over serial at 9600 baud, so the
-signal can be plotted on the computer. This is how I worked out what amplitude range the
-microphone actually produced, which set the `map()` bounds used in the visualiser.
-
-## pot-led-dimmer
-
-A potentiometer fades an LED through PWM on pin 9.
-
-Two details worth noting. The ADC is read ten times and averaged, because a single reading jitters
-by several counts and the LED visibly flickers as a result. And the input is mapped from the
-200 to 800 range the potentiometer actually swings through on my board, not the theoretical
-0 to 1023, then clamped. Mapping from the measured range rather than the nominal one gives full
-brightness travel across the physical rotation.
-
-## melody-player
-
-Plays a melody on a piezo buzzer using `tone()`, with note frequencies defined as constants and
-durations expressed as musical fractions (4 for a quarter note, 2 for a half). Each note is
-followed by a short gap so consecutive identical notes are audibly separate rather than running
-together.
-
-## Hardware
-
-- Arduino UNO R3
-- 8x8 LED matrix, common cathode, rows through 1k resistors
-- Electret microphone module on `A0`
-- 10k potentiometer
-- Piezo buzzer
+**melody-player** plays a melody on a piezo buzzer with `tone()`, note durations written as
+musical fractions. Each note is followed by a short gap so repeated notes stay audibly separate.
 
 ## Wiring
 
-The matrix rows are anodes driven high to light an LED. Columns are cathodes and are driven **low**
-to enable, so a pixel is on when its row is HIGH and its column is LOW.
+Rows are anodes driven high and columns are cathodes driven low, so a pixel lights when its row is
+HIGH and its column is LOW.
 
 | Function | Arduino pins | Notes |
 |---|---|---|
 | Matrix rows (anodes) | `2, 3, 4, 5, 6, 7, 8, 9` | each through a 1k resistor |
 | Matrix columns (cathodes) | `10, 11, 12, 13, A1, A2, A3, A4` | driven low to enable |
-| Microphone | `A0` | analogue in |
-| Potentiometer | `A0` | analogue in, dimmer sketch |
+| Microphone | `A0` | visualiser and mic-level sketches |
+| Potentiometer | `A0` | dimmer sketch |
 | LED (PWM) | `9` | dimmer sketch |
 | Piezo buzzer | `8` | melody sketch |
 
-Matrix pin order varies between modules. On mine the rows map to matrix pins 9, 14, 8, 12, 1, 7, 2, 5
-and the columns to 13, 3, 4, 10, 6, 11, 15, 16. Run `led-matrix-sweep-test` first: it walks one LED at
-a time, so a wrong pin shows up immediately instead of surfacing later as a scrambled display.
+Matrix pin order varies between modules, so run `led-matrix-sweep-test` first. A wrong pin shows
+up straight away instead of surfacing later as a scrambled display.
 
-## Tuning it for your setup
+## Two values to change for your hardware
 
-Two values are specific to the hardware and will need changing:
-
-- **Visualiser sensitivity.** `map(peakToPeak, 0, 300, 0, 8)` assumes the microphone swings about 300
-  counts peak-to-peak at normal volume. `tools/mic_calibrate.py` measures this properly, see below.
-- **Potentiometer range.** `map(potValue, 200, 800, 0, 255)` matches the travel measured on my board
-  rather than the theoretical 0 to 1023. Mapping from the real range means the full rotation is used.
+- `map(peakToPeak, 0, 300, 0, 8)` in the visualiser assumes the mic swings about 300 counts
+  peak-to-peak at normal volume.
+- `map(potValue, 200, 800, 0, 255)` in the dimmer matches the travel my potentiometer really has,
+  not the nominal 0 to 1023.
 
 ## tools/mic_calibrate.py
 
-The `300` in the visualiser is marked "TWEAK THIS" for a reason: it depends on the microphone module,
-its gain trimmer, the supply rail and how far away you are. Eyeballing the Serial Plotter gets you
-somewhere, but the plotter shows raw readings, and what the sketch actually acts on is the
-peak-to-peak spread over a 50 ms window.
-
-So this reads the `mic-level-serial` stream, reproduces that windowing on the host, and reports the
-bounds to paste back into the sketch.
+That 300 depends on the microphone module, its gain trimmer, the supply rail and how far away you
+are. The Serial Plotter only shows raw readings, while the sketch acts on the peak-to-peak spread
+over 50 ms, so this reads the `mic-level-serial` stream, reproduces that windowing on the host and
+prints a `map()` line to paste back.
 
 ```
 python3 tools/mic_calibrate.py --port /dev/cu.usbmodem1101
-python3 tools/mic_calibrate.py --port /dev/cu.usbmodem1101 --record loud.csv
-python3 tools/mic_calibrate.py --replay loud.csv
 ```
 
-It prints a live meter while capturing, then a suggested `map()` line, and a histogram of how the
-capture would have spread across the eight rows, so you can see whether the display would sit dark
-or clipped before reflashing anything.
+Two things came out of it that the plotter does not show. The noise floor is not zero, so mapping
+from 0 leaves the bottom row permanently lit. And the stream is slower than the 10 ms delay
+suggests, nearer 15 ms once 9600 baud is accounted for, which is why the visualiser samples on the
+board rather than streaming readings to a host.
 
-Two things came out of writing it that the Serial Plotter does not show:
-
-**The noise floor is not zero.** With nothing playing, the module still produced a spread of a
-couple of dozen counts. The sketch maps from 0, so that floor is permanently lit as the bottom row
-or two. Mapping from the measured floor instead is what lets the display go properly dark, the same
-correction already applied to the potentiometer in `pot-led-dimmer`.
-
-**The stream is slower than the sketch's delay suggests.** `mic-level-serial` delays 10 ms per
-reading, but each line is about five characters and 9600 baud only carries a character every
-millisecond or so, putting the real period nearer 15 ms. The tool measures it from the capture
-rather than assuming it. This is also the answer to why the visualiser samples on the board instead
-of streaming readings to a host and deciding there: the link cannot keep up with the signal.
-
-The upper bound uses the 95th percentile rather than the maximum, so one door slam does not set the
-scale for everything else and a few peaks clip instead, which is what `constrain()` is there for.
-
-Live capture needs `pyserial` (`pip install pyserial`). Replay and the tests do not need it, or a
-board:
+Live capture needs `pyserial`. Replay and the tests need neither it nor a board:
 
 ```
 python3 -m unittest discover -s tools
@@ -139,7 +75,7 @@ python3 -m unittest discover -s tools
 
 ## Running
 
-Open any sketch folder in the Arduino IDE and upload. The sketch folder name matches the `.ino`
-name, as the IDE requires. `mic-level-serial` is best viewed with the Serial Plotter at 9600 baud.
+Open a sketch folder in the Arduino IDE and upload. The folder name matches the `.ino` name, as the
+IDE requires. `mic-level-serial` is best viewed with the Serial Plotter at 9600 baud.
 
 Rupert van Vuuren. BEng Electrical and Electronic Engineering, Stellenbosch University.
